@@ -1,37 +1,28 @@
 package com.diaconia.flattojson.config;
 
 import com.diaconia.flattojson.batch.CustomVSAMFieldSetMapper;
+import com.diaconia.flattojson.batch.FixedLengthTokenizerFactory;
 import com.diaconia.flattojson.batch.JobCompletionNotificationListener;
+import com.diaconia.flattojson.batch.MultipleFileItemWriterClassifier;
+import com.diaconia.flattojson.model.DataElement;
 import com.diaconia.flattojson.model.VSAMRecord;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.MongoItemWriter;
-import org.springframework.batch.item.data.builder.MongoItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.file.transform.LineTokenizer;
-import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
-import org.springframework.batch.item.json.JsonFileItemWriter;
-import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
+import org.springframework.batch.item.support.ClassifierCompositeItemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 @Configuration
@@ -40,7 +31,7 @@ import java.util.List;
 //https://www.baeldung.com/spring-boot-spring-batch
 @EnableTransactionManagement
 public class BatchConfig {
-    String filePath = "C:\\temp\\vsam.csv";
+    String filePath = "C:\\temp\\300k.txt";
 
 
 
@@ -64,10 +55,11 @@ public class BatchConfig {
 
 
     @Bean
-    public Step step(JobRepository jobRepository, PlatformTransactionManager transactionManager,ItemWriter<VSAMRecord> writer, FlatFileItemReader reader) throws Exception {
+    public Step step(JobRepository jobRepository, PlatformTransactionManager transactionManager,ItemWriter<VSAMRecord> writer
+            , FlatFileItemReader reader) throws Exception {
 
         return new StepBuilder("flatToJSON", jobRepository)
-                .<VSAMRecord, String>chunk(2, transactionManager)
+                .<VSAMRecord, String>chunk(2_000_000, transactionManager)
                 .reader(reader)
                 .writer(writer)
                 .faultTolerant()
@@ -79,10 +71,9 @@ public class BatchConfig {
 
     @Bean
     public FlatFileItemReader reader(LineMapper<VSAMRecord> lineMapper) {
-        return new FlatFileItemReaderBuilder().name("directoryReader")
+        return new FlatFileItemReaderBuilder().name("Flat File Reader")
+                .linesToSkip(0)
                 .resource(new FileSystemResource(filePath))
-                .delimited()
-                .names("Directory")
                 .lineMapper(lineMapper)
                 .build();
     }
@@ -97,13 +88,20 @@ public class BatchConfig {
         return lineMapper;
     }
     @Bean
-    public DelimitedLineTokenizer tokenizer() {
-        var tokenizer = new DelimitedLineTokenizer();
-        tokenizer.setDelimiter(",");
-        tokenizer.setNames("taxPayerIdentificationNumber","trans","reasonCode3","xrefTaxPayerIdentificationNumber");
-        return tokenizer;
+    public LineTokenizer tokenizer(List<DataElement> dataElementList) {
+        return FixedLengthTokenizerFactory.createFixedLengthTokenizer(dataElementList);
     }
 
+    @Bean
+    public List<DataElement> dataElementList() {
+        return List.of(
+                new DataElement("taxPayerIdentificationNumber", "int", 0, 4)
+                ,new DataElement("trans", "int", 4, 4)
+                ,new DataElement("reasonCode3", "int", 8, 4)
+                ,new DataElement("xrefTaxPayerIdentificationNumber", "int", 12, 4)
+        );
+    }
+    /*
     @Bean
     public JsonFileItemWriter<VSAMRecord> jsonFileItemWriter() {
         return new JsonFileItemWriterBuilder<VSAMRecord>()
@@ -111,6 +109,16 @@ public class BatchConfig {
                 .resource(new FileSystemResource("vsam.json"))
                 .name("VSAM Record JsonFileItemWriter")
                 .build();
+    }
+
+
+
+     */
+    @Bean
+    public ClassifierCompositeItemWriter<VSAMRecord> jsonFileItemWriter() {
+        ClassifierCompositeItemWriter<VSAMRecord> compositeItemWriter = new ClassifierCompositeItemWriter<>();
+        compositeItemWriter.setClassifier(new MultipleFileItemWriterClassifier());
+        return compositeItemWriter;
     }
 
 }
