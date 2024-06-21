@@ -1,9 +1,6 @@
 package com.diaconia.flattojson.config;
 
-import com.diaconia.flattojson.batch.CustomVSAMFieldSetMapper;
-import com.diaconia.flattojson.batch.FixedLengthTokenizerFactory;
-import com.diaconia.flattojson.batch.JobCompletionNotificationListener;
-import com.diaconia.flattojson.batch.MultipleFileItemWriterClassifier;
+import com.diaconia.flattojson.batch.*;
 import com.diaconia.flattojson.model.DataElement;
 import com.diaconia.flattojson.model.VSAMRecord;
 import org.springframework.batch.core.*;
@@ -31,8 +28,17 @@ import java.util.List;
 //https://www.baeldung.com/spring-boot-spring-batch
 @EnableTransactionManagement
 public class BatchConfig {
-    String filePath = "C:\\temp\\300k.txt";
-
+    String filePath = "C:\\temp\\200k.txt";
+    //The higher the chunk size the faster the processing
+    /*
+    performance with 10k writers
+    200k: 5s
+    20k: 6s
+    2k: 8s
+    200: 9s
+    20: 11s
+     */
+    private static final int CHUNK_SIZE = 200_000;
 
 
     @Bean
@@ -59,7 +65,7 @@ public class BatchConfig {
             , FlatFileItemReader reader) throws Exception {
 
         return new StepBuilder("flatToJSON", jobRepository)
-                .<VSAMRecord, String>chunk(2_000_000, transactionManager)
+                .<VSAMRecord, String>chunk(CHUNK_SIZE, transactionManager)
                 .reader(reader)
                 .writer(writer)
                 .faultTolerant()
@@ -71,11 +77,18 @@ public class BatchConfig {
 
     @Bean
     public FlatFileItemReader reader(LineMapper<VSAMRecord> lineMapper) {
-        return new FlatFileItemReaderBuilder().name("Flat File Reader")
-                .linesToSkip(0)
-                .resource(new FileSystemResource(filePath))
-                .lineMapper(lineMapper)
-                .build();
+        FlatFileItemReader reader=new ErrorNoticingFlatFileItemReader();
+        reader.setName("Flat File Reader");
+        reader.setLinesToSkip(0);
+        String filePathRead=System.getProperty("filePath");
+        if(filePathRead==null){
+            throw new IllegalArgumentException("filePath system property not set");
+        }else{
+            System.out.println("filePathRead: "+filePathRead);
+        }
+        reader.setResource(new FileSystemResource(filePathRead));
+        reader.setLineMapper(lineMapper);
+        return reader;
     }
 
     @Bean
@@ -95,10 +108,10 @@ public class BatchConfig {
     @Bean
     public List<DataElement> dataElementList() {
         return List.of(
-                new DataElement("taxPayerIdentificationNumber", "int", 0, 4)
-                ,new DataElement("trans", "int", 4, 4)
-                ,new DataElement("reasonCode3", "int", 8, 4)
-                ,new DataElement("xrefTaxPayerIdentificationNumber", "int", 12, 4)
+                new DataElement("taxPayerIdentificationNumber", "int", 0, 7)
+                ,new DataElement("trans", "int", 7, 7)
+                ,new DataElement("reasonCode3", "int", 14, 7)
+                ,new DataElement("xrefTaxPayerIdentificationNumber", "int", 21, 7)
         );
     }
     /*

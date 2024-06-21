@@ -19,7 +19,7 @@ import java.util.List;
 public class MultipleFileItemWriterClassifier implements Classifier<VSAMRecord, ItemWriter<? super VSAMRecord>> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FixedLengthTokenizerFactory.class);
     JsonObjectMarshaller<VSAMRecord> marshaller = new JacksonJsonObjectMarshaller<>();
-    private static final int CLASSIFIER_SIZE = 1000;
+    private static final int CLASSIFIER_SIZE = 10_000;
     List<JsonFileItemWriter> writers = new ArrayList<>(CLASSIFIER_SIZE);
     public MultipleFileItemWriterClassifier() {
         for(int i=0;i<CLASSIFIER_SIZE;i++){
@@ -43,4 +43,22 @@ public class MultipleFileItemWriterClassifier implements Classifier<VSAMRecord, 
             return writers.get(chunk);
         }
     }
+    /*
+     The larger the number of writers the slower things are.
+     Some benchmarks/number of writers:
+     200k: stopped at 13 minutes [this is far to slow for 200k records]
+     20k: 2m
+     1/3/5/10K:5s
+     at roughly the 10k threshold we start to have issues presumably w/ memory
+
+    public ItemWriter<? super VSAMRecord> classify(VSAMRecord vsamRecord) {
+        String fileName = "output/" + vsamRecord.getTaxPayerIdentificationNumber() + ".json";
+        FileSystemResource file = new FileSystemResource(fileName);
+        JsonFileItemWriter writer = new JsonFileItemWriter(file, marshaller);
+        writer.setAppendAllowed(true);
+        writer.open(new ExecutionContext());
+        writer.setName(fileName);
+        return writer;
+    }
+     */
 }
