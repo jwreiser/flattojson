@@ -1,3 +1,7 @@
+access-method: service
+filePathProperty: C:/temp/200k.txt
 spring:
   application:
     name: flattojson
+  jackson:
+    serialization.indent_output: true

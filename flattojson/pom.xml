@@ -25,7 +25,14 @@
 			<artifactId>commons-lang3</artifactId>
 			<version>3.13.0</version>
 		</dependency>
-		<!--needed to store batch state for retries, etc.-->
+		<!--needed to store batch state for retries, etc.
+
+		https://stackoverflow.com/questions/51221777/failed-to-configure-a-datasource-url-attribute-is-not-specified-and-no-embedd
+		the internal abstraction relies on a relational database.
+		It is necessary to have a database with ACID capability because every batch
+		reads and writes a chunk of work and saves that information in order to restart the job.
+		A NoSql solution is not suitable for this.
+		-->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>

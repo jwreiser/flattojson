@@ -1,6 +1,7 @@
 package com.diaconia.flattojson.controller;
 
 import com.diaconia.flattojson.batch.BatchConstants;
+import com.diaconia.flattojson.config.Constants;
 import com.diaconia.flattojson.model.BatchInput;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
@@ -25,10 +26,7 @@ public class BatchController {
 
     @PostMapping("/batch")
     public void processBatch(@RequestBody BatchInput batchInput) throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addString(BatchConstants.FILE_PATH, batchInput.getFilePath())
-                .toJobParameters();
-
-        jobLauncher.run(job, jobParameters);
+        System.setProperty(Constants.PROPERTY_FILE_PATH, batchInput.getFilePath());
+        jobLauncher.run(job, new JobParametersBuilder().addString(BatchConstants.FILE_PATH, batchInput.getFilePath()).toJobParameters());
     }
 }

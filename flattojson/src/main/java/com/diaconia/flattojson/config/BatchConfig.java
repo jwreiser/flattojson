@@ -14,6 +14,7 @@ import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.batch.item.support.ClassifierCompositeItemWriter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
@@ -28,7 +29,6 @@ import java.util.List;
 //https://www.baeldung.com/spring-boot-spring-batch
 @EnableTransactionManagement
 public class BatchConfig {
-    String filePath = "C:\\temp\\200k.txt";
     //The higher the chunk size the faster the processing
     /*
     performance with 10k writers
@@ -40,6 +40,12 @@ public class BatchConfig {
      */
     private static final int CHUNK_SIZE = 200_000;
 
+
+    @Value("${access-method}")
+    private static String accessMethod;
+
+    @Value("${filePathProperty}")
+    private static String filePathProperty;
 
     @Bean
     /**
@@ -80,13 +86,24 @@ public class BatchConfig {
         FlatFileItemReader reader=new ErrorNoticingFlatFileItemReader();
         reader.setName("Flat File Reader");
         reader.setLinesToSkip(0);
-        String filePathRead=System.getProperty("filePath");
+        String filePath;
+        String filePathRead=System.getProperty(Constants.PROPERTY_FILE_PATH);
         if(filePathRead==null){
-            throw new IllegalArgumentException("filePath system property not set");
+            if (accessMethod != null && accessMethod.equals("command-line")) {
+                throw new IllegalArgumentException("filePath system property not set");
+            }else{
+                if(filePathProperty==null || filePathProperty.isEmpty()){
+                    filePath="C:/temp/200k.txt";
+//                    throw new IllegalArgumentException("filePath application property not set");
+                }else{
+                    filePath=filePathProperty;
+                }
+            }
         }else{
+            filePath=filePathRead;
             System.out.println("filePathRead: "+filePathRead);
         }
-        reader.setResource(new FileSystemResource(filePathRead));
+        reader.setResource(new FileSystemResource(filePath));
         reader.setLineMapper(lineMapper);
         return reader;
     }
