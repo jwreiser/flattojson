@@ -73,6 +73,7 @@ public class BatchConfig {
         return new StepBuilder("flatToJSON", jobRepository)
                 .<VSAMRecord, String>chunk(CHUNK_SIZE, transactionManager)
                 .reader(reader)
+                .processor(processor())
                 .writer(writer)
                 .faultTolerant()
                 .skipLimit(Integer.MAX_VALUE)
@@ -151,4 +152,7 @@ public class BatchConfig {
         return compositeItemWriter;
     }
 
+    public NoisyProcessor processor() {
+        return new NoisyProcessor();
+    }
 }
